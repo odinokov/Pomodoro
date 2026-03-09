@@ -2,6 +2,8 @@
 
 Single-file Pomodoro timer for Windows PowerShell. No dependencies.
 
+<img width="897" height="492" alt="image" src="https://github.com/user-attachments/assets/29b4a8c2-f8c7-49b6-a6aa-9bb5f9249b3f" />
+
 ## Usage
 
 ```powershell
