@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   Simple, robust Pomodoro timer for Windows (no admin rights).
@@ -208,7 +208,7 @@ function Start-Pomodoro {
         while ($true) {
             # Work phase
             Write-Log -Event 'PHASE_START' -Phase 'WORK'
-            Send-Beep @(@(700,200),@(900,300))
+            Send-Beep @(@(700,200),@(900,200),@(1100,300))
 
             $result = Start-Countdown -Phase 'WORK' -Seconds ($WorkMinutes * 60)
             if ($result -eq 'QUIT') { break }
