@@ -1,11 +1,11 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
   Simple, robust Pomodoro timer for Windows (no admin rights).
 .DESCRIPTION
   Runs a 25-minute work session, then a 5-minute break, and every 4th break becomes 15 min.
   Tray icon with Pause/Resume, Skip, Quit.  Console keyboard: P, S, Q.
-  Optional screen-lock after work (-LockScreen).  Logs sessions to CSV.
+  Locks the workstation after each work session by default (-NoLockScreen to disable).  Logs sessions to CSV.
 .PARAMETER WorkMinutes
   Focus period length (default 25).
 .PARAMETER ShortBreakMinutes
@@ -15,15 +15,15 @@
 .PARAMETER LongBreakEvery
   How many work sessions before a long break (default 4).
 .PARAMETER LogPath
-  CSV log file path (default pomodoro_log.csv in script folder).
+  Optional CSV log file path. Logging is disabled unless this is supplied.
 .PARAMETER NoSound
   Disable beep sounds.
 .PARAMETER NoTray
   Disable tray icon.
-.PARAMETER LockScreen
-  Lock the workstation after each work session.
+.PARAMETER NoLockScreen
+  Disable locking the workstation after each work block (locking is on by default).
 .EXAMPLE
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./pomodoro.ps1 -WorkMinutes 30 -LockScreen
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./pomodoro.ps1 -WorkMinutes 30 -NoLockScreen
 #>
 
 param(
@@ -31,10 +31,10 @@ param(
     [ValidateRange(1, 60)][int]$ShortBreakMinutes = 5,
     [ValidateRange(1, 60)][int]$LongBreakMinutes  = 15,
     [ValidateRange(2, 20)][int]$LongBreakEvery    = 4,
-    [string]$LogPath = (Join-Path $PSScriptRoot 'pomodoro_log.csv'),
+    [string]$LogPath,
     [switch]$NoSound,
     [switch]$NoTray,
-    [switch]$LockScreen
+    [switch]$NoLockScreen
 )
 
 Set-StrictMode -Version Latest
@@ -52,6 +52,7 @@ $script:TrayAction    = $null
 
 # ----- logging (never fatal) ------------------------------------------
 function Write-Log([string]$Event, [string]$Phase = '', [string]$Detail = '') {
+    if ([string]::IsNullOrWhiteSpace($LogPath)) { return }
     try {
         $row = [pscustomobject]@{
             Timestamp = (Get-Date).ToString('s')
@@ -198,7 +199,7 @@ function Start-Countdown([string]$Phase, [int]$Seconds) {
 
 # ----- main session ----------------------------------------------------
 function Start-Pomodoro {
-    Write-Host "`n  Pomodoro Timer  --  Work: ${WorkMinutes}m  |  Short: ${ShortBreakMinutes}m  |  Long: ${LongBreakMinutes}m (every $LongBreakEvery)`n  Keys: [P]ause  [S]kip  [Q]uit`n  Tray: right-click`n  Lock: $(if($LockScreen){'ON'}else{'OFF'})`n" -ForegroundColor DarkGray
+    Write-Host "`n  Pomodoro Timer  --  Work: ${WorkMinutes}m  |  Short: ${ShortBreakMinutes}m  |  Long: ${LongBreakMinutes}m (every $LongBreakEvery)`n  Keys: [P]ause  [S]kip  [Q]uit`n  Tray: right-click`n  Lock: $(if($NoLockScreen){'OFF'}else{'ON'})`n" -ForegroundColor DarkGray
 
     $script:SessionStart = Get-Date
     Initialize-Tray
@@ -223,7 +224,7 @@ function Start-Pomodoro {
             $breakSec  = if ($isLong) { $LongBreakMinutes * 60 } else { $ShortBreakMinutes * 60 }
             $breakBeep = if ($isLong) { @(@(500,200),@(600,200),@(800,400)) } else { @(@(600,150),@(600,150),@(800,250)) }
 
-            if ($LockScreen) {
+            if (-not $NoLockScreen) {
                 Write-Log -Event 'SCREEN_LOCKED'
                 try { rundll32.exe user32.dll,LockWorkStation } catch { }
             } else {
@@ -250,7 +251,8 @@ function Start-Pomodoro {
 
         $elapsed  = ((Get-Date) - $script:SessionStart).ToString('h\h\ mm\m')
         $workTime = [TimeSpan]::FromSeconds($script:TotalWorkSec).ToString('h\h\ mm\m')
-        Write-Host "`n  Done.  Pomodoros: $($script:PomodoroCount)  |  Focus: $workTime  |  Session: $elapsed  |  Log: $LogPath`n" -ForegroundColor DarkGray
+        $logPart  = if ([string]::IsNullOrWhiteSpace($LogPath)) { '' } else { "  |  Log: $LogPath" }
+        Write-Host "`n  Done.  Pomodoros: $($script:PomodoroCount)  |  Focus: $workTime  |  Session: $elapsed$logPart`n" -ForegroundColor DarkGray
     }
 }
 
