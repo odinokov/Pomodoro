@@ -50,9 +50,11 @@ $script:SessionStart  = $null
 $script:TrayIcon      = $null
 $script:TrayAction    = $null
 
+$script:LoggingEnabled = -not [string]::IsNullOrWhiteSpace($LogPath)
+
 # ----- logging (never fatal) ------------------------------------------
 function Write-Log([string]$Event, [string]$Phase = '', [string]$Detail = '') {
-    if ([string]::IsNullOrWhiteSpace($LogPath)) { return }
+    if (-not $script:LoggingEnabled) { return }
     try {
         $row = [pscustomobject]@{
             Timestamp = (Get-Date).ToString('s')
@@ -129,6 +131,12 @@ function Remove-Tray {
 }
 
 # ----- countdown engine ------------------------------------------------
+# Classic ASCII bar, e.g. [##############----------------]
+function Format-ProgressBar([int]$Percent, [int]$Width = 30) {
+    $filled = [Math]::Max(0, [Math]::Min($Width, [int][Math]::Round($Width * $Percent / 100)))
+    '[' + ('#' * $filled) + ('-' * ($Width - $filled)) + ']'
+}
+
 function Start-Countdown([string]$Phase, [int]$Seconds) {
     $deadline     = (Get-Date).AddSeconds($Seconds)
     $paused       = $false
@@ -148,14 +156,14 @@ function Start-Countdown([string]$Phase, [int]$Seconds) {
         $percent = [Math]::Max(0, [Math]::Min(100, [int]((1 - $remain / $Seconds) * 100)))
         $r = [TimeSpan]::FromSeconds($remain).ToString('mm\:ss')
 
-        Write-Progress -Activity "$displayPhase  $r  (#$($script:PomodoroCount))" `
-                       -Status "Time remaining: $r" `
-                       -PercentComplete $percent
+        $bar  = Format-ProgressBar -Percent $percent
+        $line = "  {0,-6} {1}  {2,3}%  {3}  (#{4})" -f $displayPhase, $bar, $percent, $r, $script:PomodoroCount
+        Write-Host ("`r" + $line.PadRight(60)) -NoNewline
         Update-TrayTip -Phase $displayPhase -RemainSec $remain
         try { $Host.UI.RawUI.WindowTitle = "Pomodoro | $displayPhase $r (#$($script:PomodoroCount))" } catch { }
 
         if (-not $paused -and $remain -le 0) {
-            Write-Progress -Activity "$displayPhase" -Completed
+            Write-Host ''
             return 'DONE'
         }
 
@@ -184,11 +192,11 @@ function Start-Countdown([string]$Phase, [int]$Seconds) {
             }
             's' {
                 Write-Log -Event 'SKIP' -Phase $Phase
-                Write-Progress -Activity "$Phase" -Completed
+                Write-Host ''
                 return 'SKIP'
             }
             'q' {
-                Write-Progress -Activity "$Phase" -Completed
+                Write-Host ''
                 return 'QUIT'
             }
         }
@@ -199,7 +207,8 @@ function Start-Countdown([string]$Phase, [int]$Seconds) {
 
 # ----- main session ----------------------------------------------------
 function Start-Pomodoro {
-    Write-Host "`n  Pomodoro Timer  --  Work: ${WorkMinutes}m  |  Short: ${ShortBreakMinutes}m  |  Long: ${LongBreakMinutes}m (every $LongBreakEvery)`n  Keys: [P]ause  [S]kip  [Q]uit`n  Tray: right-click`n  Lock: $(if($NoLockScreen){'OFF'}else{'ON'})`n" -ForegroundColor DarkGray
+    $lockEnabled = -not $NoLockScreen
+    Write-Host "`n  Pomodoro Timer  --  Work: ${WorkMinutes}m  |  Short: ${ShortBreakMinutes}m  |  Long: ${LongBreakMinutes}m (every $LongBreakEvery)`n  Keys: [P]ause  [S]kip  [Q]uit`n  Tray: right-click`n  Lock: $(if($lockEnabled){'ON'}else{'OFF'})`n" -ForegroundColor DarkGray
 
     $script:SessionStart = Get-Date
     Initialize-Tray
@@ -224,7 +233,7 @@ function Start-Pomodoro {
             $breakSec  = if ($isLong) { $LongBreakMinutes * 60 } else { $ShortBreakMinutes * 60 }
             $breakBeep = if ($isLong) { @(@(500,200),@(600,200),@(800,400)) } else { @(@(600,150),@(600,150),@(800,250)) }
 
-            if (-not $NoLockScreen) {
+            if ($lockEnabled) {
                 Write-Log -Event 'SCREEN_LOCKED'
                 try { rundll32.exe user32.dll,LockWorkStation } catch { }
             } else {
@@ -251,7 +260,7 @@ function Start-Pomodoro {
 
         $elapsed  = ((Get-Date) - $script:SessionStart).ToString('h\h\ mm\m')
         $workTime = [TimeSpan]::FromSeconds($script:TotalWorkSec).ToString('h\h\ mm\m')
-        $logPart  = if ([string]::IsNullOrWhiteSpace($LogPath)) { '' } else { "  |  Log: $LogPath" }
+        $logPart  = if ($script:LoggingEnabled) { "  |  Log: $LogPath" } else { '' }
         Write-Host "`n  Done.  Pomodoros: $($script:PomodoroCount)  |  Focus: $workTime  |  Session: $elapsed$logPart`n" -ForegroundColor DarkGray
     }
 }
