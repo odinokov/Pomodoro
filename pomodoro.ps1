@@ -63,11 +63,7 @@ function Write-Log([string]$Event, [string]$Phase = '', [string]$Detail = '') {
             Count     = $script:PomodoroCount
             Detail    = $Detail
         }
-        if (Test-Path $LogPath) {
-            $row | Export-Csv $LogPath -NoTypeInformation -Append
-        } else {
-            $row | Export-Csv $LogPath -NoTypeInformation
-        }
+        $row | Export-Csv $LogPath -NoTypeInformation -Append
     } catch { }
 }
 
@@ -153,12 +149,14 @@ function Start-Countdown([string]$Phase, [int]$Seconds) {
         }
 
         $displayPhase = if ($paused) { 'PAUSED' } else { $Phase }
-        $percent = [Math]::Max(0, [Math]::Min(100, [int]((1 - $remain / $Seconds) * 100)))
+        $percent = [Math]::Max(0, [Math]::Min(100, [int][Math]::Floor((1 - $remain / $Seconds) * 100)))
         $r = [TimeSpan]::FromSeconds($remain).ToString('mm\:ss')
 
         $bar  = Format-ProgressBar -Percent $percent
         $line = "  {0,-6} {1}  {2,3}%  {3}  (#{4})" -f $displayPhase, $bar, $percent, $r, $script:PomodoroCount
-        Write-Host ("`r" + $line.PadRight(60)) -NoNewline
+        # Pad past the longest possible line ('SHORT BREAK' ~65 chars) so a
+        # shrinking label (e.g. SHORT BREAK -> PAUSED) leaves no residue.
+        Write-Host ("`r" + $line.PadRight(70)) -NoNewline
         Update-TrayTip -Phase $displayPhase -RemainSec $remain
         try { $Host.UI.RawUI.WindowTitle = "Pomodoro | $displayPhase $r (#$($script:PomodoroCount))" } catch { }
 
@@ -223,6 +221,8 @@ function Start-Pomodoro {
             $result = Start-Countdown -Phase 'WORK' -Seconds ($WorkMinutes * 60)
             if ($result -eq 'QUIT') { break }
 
+            # Skipped work sessions still count toward the long-break cadence;
+            # only completed ones add to TotalWorkSec below.
             $script:PomodoroCount++
             if ($result -eq 'DONE') { $script:TotalWorkSec += ($WorkMinutes * 60) }
             Write-Log -Event "WORK_$result" -Detail "count=$($script:PomodoroCount)"
@@ -255,7 +255,7 @@ function Start-Pomodoro {
     }
     finally {
         Write-Log -Event 'SESSION_END'
-        if (-not $NoSound) { Send-Beep @(@(800,150),@(1000,150),@(1200,300)) }
+        Send-Beep @(@(800,150),@(1000,150),@(1200,300))
         Remove-Tray
 
         $elapsed  = ((Get-Date) - $script:SessionStart).ToString('h\h\ mm\m')

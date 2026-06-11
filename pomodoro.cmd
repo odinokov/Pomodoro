@@ -1,1 +1,1 @@
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\pomodoro.ps1 -LockScreen
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0pomodoro.ps1"
