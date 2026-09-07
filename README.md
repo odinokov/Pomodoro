@@ -1,8 +1,10 @@
 # Pomodoro Timer
 
-Single-file Pomodoro timer for Windows PowerShell. No dependencies.
+Single-file Pomodoro timer for Windows PowerShell. No dependencies. Locks your workstation after each work session by default (`-NoLockScreen` to disable).
 
 ## Usage
+
+Double-click `pomodoro.cmd`, or run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\pomodoro.ps1
@@ -27,7 +29,7 @@ With session logging:
 | `-WorkMinutes`       | 25      | Focus period length (1-120).                                     |
 | `-ShortBreakMinutes` | 5       | Short break length (1-60).                                       |
 | `-LongBreakMinutes`  | 15      | Long break length (1-60).                                        |
-| `-LongBreakEvery`    | 4       | Work sessions before a long break (2-20).                        |
+| `-LongBreakEvery`    | 4       | Work sessions before a long break (2-20). Skipped sessions count. |
 | `-LogPath`           | (none)  | CSV log file path. Logging is disabled unless a path is supplied. |
 | `-NoSound`           | off     | Disable beeps.                                                   |
 | `-NoTray`            | off     | Disable tray icon.                                               |
@@ -44,4 +46,4 @@ Windows 10+, PowerShell 5.1+ (built-in).
 
 ## License
 
-MIT (c) 2025
+[MIT](LICENSE) (c) 2025
