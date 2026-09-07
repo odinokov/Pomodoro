@@ -1,5 +1,9 @@
 # Pomodoro Timer
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+![Platform: Windows 10+](https://img.shields.io/badge/platform-Windows%2010%2B-blue.svg)
+![PowerShell 5.1+](https://img.shields.io/badge/PowerShell-5.1%2B-5391FE.svg)
+
 Single-file Pomodoro timer for Windows PowerShell. No dependencies. Locks your workstation after each work session by default (`-NoLockScreen` to disable).
 
 ## Usage
